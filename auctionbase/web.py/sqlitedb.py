@@ -73,13 +73,12 @@ def changeCurrentTime(cur_time):
    
 #auction users to enter bids on open auctions
 def enterBids(itemid, userid, amount):
-    query_string = 'insert into Bids values( $v1, $v2, $v3, $v4);'
-    try:
-        result = query(query_string, {'v1' : itemid, 'v2' : userid.encode("utf-8"), 'v3' : amount,'v4' : getTime().encode("utf-8") })
-    except Exception as e :
-        print str(e)
-        return False
-        
+    query_string = 'insert into Bids(itemid, userid, amount, time) values ( $v1, $v2, $v3, $v4);'
+    #try:
+    result = query(query_string, {'v1' : itemid.encode("utf-8"), 'v2' : userid, 'v3' : amount.encode("utf-8"),'v4' : getTime().encode("utf-8") })
+    #except Exception as e :
+    #    print str(e)
+    #    return False
     return True
 
 #automatic auction closing
@@ -90,7 +89,7 @@ def auctionClosing(itemid):
     except Exception as e:
         print str(e)
     else:
-        if  (getTime() >= result[1] | result[2] >= result[3] | getTime() < result[0]) :
+        if  (getTime() >= result[0].Ends | result[0].Currently >= result[0].Buy_Price | getTime() < result[0].Started) :
             return False
     return True
 
@@ -113,17 +112,17 @@ def browseAuctions(itemid, userid, min_price, max_price, status):
     else:
         if(status == 'Open') :
             for i in range(0, len(status)-1 ):
-                if result[i][6] <= getTime() & result[i][7] > getTime() & result[i][2] < result[i][4] :
+                if result[i].Started <= getTime() & result[i].Ends > getTime() & result[i].Currently < result[i].Buy_Price :
                     ans.add(result[i])
         
         elif(stauts == 'Close'):
             for i in range(0, len(status)-1 ) :
-                if result[i][7] <= getTime() | result[i][2] >= result[i][4] :
+                if result[i].Ends <= getTime() | result[i].Currently >= result[i].Buy_Price:
                     ans.add(result[i])
 
         elif(stauts == 'Not Started'):
             for i in range(0, len(status)-1 ) :
-                if result[i][6] > getTime() :
+                if result[i].Started > getTime() :
                     ans.add(result[i])
         else:
             ans = result
@@ -136,3 +135,4 @@ def browseAuctions(itemid, userid, min_price, max_price, status):
     
     
     
+

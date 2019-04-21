@@ -53,12 +53,13 @@ def render_template(template_name, **context):
 urls = ('/currtime', 'curr_time',
         '/selecttime', 'select_time',
         '/add_bid','add_bid',
+        '/search','search',
         # TODO: add additional URLs here
         # first parameter => URL, second parameter => class name
         )
 
 class curr_time:
-    # A simple GET request, to '/currtime'
+    # A simple GET request
     #
     # Notice that we pass in `current_time' to our `render_template' call
     # in order to have its value displayed on the web page
@@ -110,6 +111,24 @@ class add_bid:
         add_result = sqlitedb.enterBids(itemID,userID.encode("utf-8"),price)
         print add_result
         return render_template('add_bid.html', add_result = add_result)
+
+class search:
+    def GET(self):
+        return render_template('search.html')
+    
+    def POST(self) :
+        post_params = web.input()
+        print post_params
+        itemID = post_params['itemID']
+        maxPrice = post_params['maxPrice']
+        minPrice = post_params['minPrice']
+        status =  post_params['status']
+        descrption = post_params['descrption']
+        category =  post_params['category']
+        result = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
+        print result
+        return render_template('search.html', search_result = result)
+        
 ###########################################################################################
 ##########################DO NOT CHANGE ANYTHING BELOW THIS LINE!##########################
 ###########################################################################################

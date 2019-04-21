@@ -54,6 +54,7 @@ def getItemById(item_id):
 # wrapper method around web.py's db.query method
 # check out http://webpy.org/cookbook/query for more info
 def query(query_string, vars = {}):
+    print vars
     return list(db.query(query_string, vars))
 
 #####################END HELPER METHODS#####################
@@ -63,14 +64,23 @@ def query(query_string, vars = {}):
 
 #change current time manually
 def changeCurrentTime(cur_time):
-    query_string = 'update CurrentTime set Time = $cur_time'
-    result = query(query_string, {'cur_time': cur_time})
-    return result[0].Time
-
+    query_string = 'update CurrentTime set Time = $Cur_time where Time = $old'
+    try:
+        result = query(query_string, {'Cur_time': cur_time,'old': getTime().encode("utf-8")})
+        #return unicode(result[0].Time)
+    except Exception as e:
+        print str(e)
+   
 #auction users to enter bids on open auctions
 def enterBids(itemid, userid, amount):
     query_string = 'insert into Bids values( $v1, $v2, $v3, $v4);'
-    result = query(query_string, {'v1' : itemid, 'v2' : userid, 'v3' : amount,'v4' : getTime()})
+    try:
+        result = query(query_string, {'v1' : itemid, 'v2' : userid.encode("utf-8"), 'v3' : amount,'v4' : getTime().encode("utf-8") })
+    except Exception as e :
+        print str(e)
+        return False
+        
+    return True
 
 #automatic auction closing
 def auctionClosing(itemid):
@@ -126,4 +136,3 @@ def browseAuctions(itemid, userid, min_price, max_price, status):
     
     
     
-

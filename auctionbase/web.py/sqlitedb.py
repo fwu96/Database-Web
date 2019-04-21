@@ -54,8 +54,10 @@ def getItemById(item_id):
 # wrapper method around web.py's db.query method
 # check out http://webpy.org/cookbook/query for more info
 def query(query_string, vars = {}):
-    print vars
-    return list(db.query(query_string, vars))
+    result = db.query(query_string, vars)
+    if(isinstance(result,int)):
+        return result
+    return list(result)
 
 #####################END HELPER METHODS#####################
 
@@ -121,10 +123,6 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
     except Exception as e:
         print str(e)
     return results
-
-
-        
-
     
     
     

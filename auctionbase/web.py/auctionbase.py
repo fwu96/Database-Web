@@ -52,6 +52,7 @@ def render_template(template_name, **context):
 
 urls = ('/currtime', 'curr_time',
         '/selecttime', 'select_time',
+        '/add_bid','add_bid',
         # TODO: add additional URLs here
         # first parameter => URL, second parameter => class name
         )
@@ -64,6 +65,7 @@ class curr_time:
     def GET(self):
         current_time = sqlitedb.getTime()
         return render_template('curr_time.html', time = current_time)
+
 
 class select_time:
     # Aanother GET request, this time to the URL '/selecttime'
@@ -82,18 +84,32 @@ class select_time:
         yyyy = post_params['yyyy']
         HH = post_params['HH']
         mm = post_params['mm']
-        ss = post_params['ss'];
+        ss = post_params['ss']
         enter_name = post_params['entername']
 
 
         selected_time = '%s-%s-%s %s:%s:%s' % (yyyy, MM, dd, HH, mm, ss)
         update_message = '(Hello, %s. Previously selected time was: %s.)' % (enter_name, selected_time)
         # TODO: save the selected time as the current time in the database
-
+        sqlitedb.changeCurrentTime(selected_time.encode("utf-8"))
+        selected_time = unicode(selected_time)
+        
         # Here, we assign `update_message' to `message', which means
         # we'll refer to it in our template as `message'
         return render_template('select_time.html', message = update_message)
 
+class add_bid:
+    def GET(self) :
+         return render_template('add_bid.html')
+
+    def POST(self) :
+        post_params = web.input()
+        itemID = post_params['itemID']
+        price = post_params['price']
+        userID = post_params['userID']
+        add_result = sqlitedb.enterBids(itemID,userID.encode("utf-8"),price)
+        print add_result
+        return render_template('add_bid.html', add_result = add_result)
 ###########################################################################################
 ##########################DO NOT CHANGE ANYTHING BELOW THIS LINE!##########################
 ###########################################################################################

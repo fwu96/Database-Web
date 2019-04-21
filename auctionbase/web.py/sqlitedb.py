@@ -94,40 +94,33 @@ def auctionClosing(itemid):
     return True
 
 #browse auctions itemid, userid,min_price max_price, status
-def browseAuctions(itemid, userid, min_price, max_price, status):
-    query_string = 'select * from Items where '
-    if itemid != None :
-        query_string = query_string + ' ItemID = ' + itemid + ','
-    if userid != None :
-        query_string = query_string + ' Seller_UserID  = ' + userid + ','
-    if min_price != None :
-        query_string = query_string + ' Buy_Price  >= ' + min_price + ','
-    if max_price != None :
-        query_string = query_string + ' Buy_Price  <= ' + max_price
-    ans = []
+def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
+    itemid.encode("utf-8")
+    category.encode("utf-8")
+    itemdes.encode("utf-8")
+    min_price.encode("utf-8")
+    max_price.encode("utf-8")
+    results = [] 
+    query_string = 'select * from Items, Categories  where Items.ItemID = Categories.ItemID'
+    if itemid != '' :
+        query_string = query_string + ' and Items.ItemID = ' + itemid 
+    if category != '' :
+        query_string = query_string + ' and Categories.category  = \'' + category +'\''
+    if itemdes != '' :
+        query_string = query_string + ' and Items.description  like  \'%' + itemdes + "%\'"
+    if min_price != '' :
+        query_string = query_string + ' and Items.Buy_Price  >= ' + min_price 
+    if max_price != '' :
+        query_string = query_string + ' and Items.Buy_Price  <= ' + max_price
+    if(status == 'open') :
+        query_string = query_string + ' and Items.Ends > \'' + getTime().encode("utf-8") + '\' and Items.Currently >= Items.Buy_Price  and Items.Started <= \'' +getTime().encode("utf-8") +'\''
+    elif(status == 'close'):
+        query_string = query_string + ' and (Items.Ends <= \'' + getTime().encode("utf-8") + '\' or Items.Currently >= Items.Buy_Price  or Items.Started > \'' +getTime().encode("utf-8") +'\')'
     try:
-        result = query(query_string)
+        results = query(query_string)
     except Exception as e:
         print str(e)
-    else:
-        if(status == 'Open') :
-            for i in range(0, len(status)-1 ):
-                if result[i].Started <= getTime() & result[i].Ends > getTime() & result[i].Currently < result[i].Buy_Price :
-                    ans.add(result[i])
-        
-        elif(stauts == 'Close'):
-            for i in range(0, len(status)-1 ) :
-                if result[i].Ends <= getTime() | result[i].Currently >= result[i].Buy_Price:
-                    ans.add(result[i])
-
-        elif(stauts == 'Not Started'):
-            for i in range(0, len(status)-1 ) :
-                if result[i].Started > getTime() :
-                    ans.add(result[i])
-        else:
-            ans = result
-        return ans
-
+    return results
 
 
         

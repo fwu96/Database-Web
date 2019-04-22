@@ -103,7 +103,9 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
     min_price.encode("utf-8")
     max_price.encode("utf-8")
     results = [] 
-    query_string = 'select * from Items, Categories  where Items.ItemID = Categories.ItemID'
+    result_auction = []
+    result_cat = []
+    query_string = 'select distinct Items.itemid from Items, Categories  where Items.ItemID = Categories.ItemID'
     if itemid != '' :
         query_string = query_string + ' and Items.ItemID = ' + itemid 
     if category != '' :
@@ -120,10 +122,16 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
         query_string = query_string + ' and (Items.Ends <= \'' + getTime().encode("utf-8") + '\' or Items.Currently >= Items.Buy_Price  or Items.Started > \'' +getTime().encode("utf-8") +'\')'
     try:
         results = query(query_string)
+        for i in range (0, len(results) - 1):
+            q_str = "select * from Items where itemid = " + results[i].itemid.encode("utf-8")
+            result2 = query(q_str)
+            result_auction.append(result2)
+            q2_str = "select * from Categories where itemid = " + results[i].itemid.encode("utf-8")
+            result3 = query(q2_str)
+            result_cat.append(result3)
     except Exception as e:
         print str(e)
-    return results
+    return results, result_auction, result_cat 
     
     
     
-

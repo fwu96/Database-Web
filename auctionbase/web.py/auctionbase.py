@@ -125,8 +125,7 @@ class search:
         status =  post_params['status']
         descrption = post_params['descrption']
         category =  post_params['category']
-        result = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
-        print result
+        result, res_item, res_cat = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
         return render_template('search.html', search_result = result)
         
 ###########################################################################################

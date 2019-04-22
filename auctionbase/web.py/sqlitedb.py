@@ -76,11 +76,11 @@ def changeCurrentTime(cur_time):
 #auction users to enter bids on open auctions
 def enterBids(itemid, userid, amount):
     query_string = 'insert into Bids(itemid, userid, amount, time) values ( $v1, $v2, $v3, $v4);'
-    #try:
-    result = query(query_string, {'v1' : itemid.encode("utf-8"), 'v2' : userid, 'v3' : amount.encode("utf-8"),'v4' : getTime().encode("utf-8") })
-    #except Exception as e :
-    #    print str(e)
-    #    return False
+    try:
+        result = query(query_string, {'v1' : itemid.encode("utf-8"), 'v2' : userid, 'v3' : amount.encode("utf-8"),'v4' : getTime().encode("utf-8") })
+    except Exception as e :
+        print str(e)
+        return False
     return True
 
 #automatic auction closing
@@ -117,9 +117,9 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
     if max_price != '' :
         query_string = query_string + ' and Items.Buy_Price  <= ' + max_price
     if(status == 'open') :
-        query_string = query_string + ' and Items.Ends > \'' + getTime().encode("utf-8") + '\' and Items.Currently >= Items.Buy_Price  and Items.Started <= \'' +getTime().encode("utf-8") +'\''
+        query_string = query_string + ' and Items.Ends > \'' + getTime().encode("utf-8") + '\' and ((Items.Currently < Items.Buy_Price and Items.Buy_Price is not null) or Items.Buy_Price is null) and Items.Started <= \'' +getTime().encode("utf-8") +'\''
     elif(status == 'close'):
-        query_string = query_string + ' and (Items.Ends <= \'' + getTime().encode("utf-8") + '\' or Items.Currently >= Items.Buy_Price  or Items.Started > \'' +getTime().encode("utf-8") +'\')'
+        query_string = query_string + ' and (Items.Ends <= \'' + getTime().encode("utf-8") + '\' or ((Items.Currently >= Items.Buy_Price and Items.Buy_Price is not null) or Items.Buy_Price is null) or Items.Started > \'' +getTime().encode("utf-8") +'\')'
     try:
         results = query(query_string)
         for i in range (0, len(results) - 1):
@@ -132,6 +132,3 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
     except Exception as e:
         print str(e)
     return results, result_auction, result_cat 
-    
-    
-    

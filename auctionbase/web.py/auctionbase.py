@@ -54,10 +54,13 @@ urls = ('/currtime', 'curr_time',
         '/selecttime', 'select_time',
         '/add_bid','add_bid',
         '/search','search',
+        '/curr_time', 'curr_time',
+        # '/searchOne', 'searchResult',
         # TODO: add additional URLs here
         # first parameter => URL, second parameter => class name
         )
-
+global searchingResult
+searchingResult = []
 class curr_time:
     # A simple GET request
     #
@@ -112,6 +115,8 @@ class add_bid:
         print add_result
         return render_template('add_bid.html', add_result = add_result)
 
+
+
 class search:
     def GET(self):
         return render_template('search.html')
@@ -125,9 +130,74 @@ class search:
         status =  post_params['status']
         descrption = post_params['descrption']
         category =  post_params['category']
-        result, res_item, res_cat = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
-        return render_template('search.html', search_result = result)
+        result = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
+        # print result
+        global searchingResult
+        searchingResult = result
+
+        print searchingResult
+
+        # html_str = "<div>I need to create a new one</div>"
+        # for res in result:
+        #     for key in res:
+        #         html_str = html_str + "<div><span>" + key + "</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; " + "<span>" + str(res[key])  + "</span></div>"
+        #     break
         
+        # html_str += "<div>-----------------------</div>"
+
+        # print html_str
+        
+        # Html_file = open("./templates/searchOne.html", "w")
+        # Html_file.write(html_str)
+        # Html_file.close()
+
+        
+        # kw = {}
+        # urlShit = web.http.url("/searchOne.html", False)
+        # print urlShit
+
+        global urls
+        a = ('/searchResult/(.*)', 'searchResult',)
+        urls = urls + a
+        linkList = []
+        for i in range(0,len(result)-1):
+            L = [result[i].ItemID, "http://0.0.0.0:8080/searchResult/search" + str(i)]
+            linkList.append(L) 
+    
+        print linkList
+
+        return render_template('search.html', search_result = linkList)
+
+class searchResult:
+    def GET(self, name):
+        global searchingResult
+        print searchingResult
+        for i in range(0, len(searchingResult) - 1):
+            if name == "search" + str(i):
+                html_str = "<div>I need to create a new one</div>"
+                res = searchingResult[i]
+                for key in res:
+                    html_str = html_str + "<div><span>" + key + "</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; " + "<span>" + str(res[key])  + "</span></div>"
+        
+                html_str += "<div>-----------------------</div>"
+
+                print html_str
+            
+                Html_file = open("./templates/" + name + ".html", "w")
+                Html_file.write(html_str)
+                Html_file.close()
+
+                return render_template(name + '.html')
+        return render_template("")
+
+        # a = ('/searchOne', 'searchResult',)
+        # urls = urls + a
+
+
+        
+
+
+ 
 ###########################################################################################
 ##########################DO NOT CHANGE ANYTHING BELOW THIS LINE!##########################
 ###########################################################################################

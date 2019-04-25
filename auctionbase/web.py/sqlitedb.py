@@ -64,85 +64,90 @@ def query(query_string, vars = {}):
 #TODO: additional methods to interact with your database,
 # e.g. to update the current time
 
-#change current time manually
+# Manually updating current time
 def changeCurrentTime(cur_time):
-    query_string = 'update CurrentTime set Time = $Cur_time where Time = $old'
+    query_string = 'update CurrentTime set Time = $curTime where Time = $oldTime'
     try:
-        result = query(query_string, {'Cur_time': cur_time,'old': getTime().encode("utf-8")})
-        #return unicode(result[0].Time)
+        result = query(query_string, {'curTime': cur_time, 'oldTime': getTime().encode("utf-8")})
     except Exception as e:
         print str(e)
    
-#auction users to enter bids on open auctions
+# Allow user to enter their bid
+# return true if they enter successfully, otherwise false
+# the entering result would be shown on the screen
 def enterBids(itemid, userid, amount):
-    query_string = 'insert into Bids(itemid, userid, amount, time) values ( $v1, $v2, $v3, $v4);'
+    query_string = 'insert into Bids(itemid, userid, amount, time) values ($v1, $v2, $v3, $v4);'
     try:
-        result = query(query_string, {'v1' : itemid.encode("utf-8"), 'v2' : userid, 'v3' : amount.encode("utf-8"),'v4' : getTime().encode("utf-8") })
+        result = query(query_string, {'v1': itemid.encode("utf-8"), 'v2': userid, 'v3': amount.encode("utf-8"), 'v4': getTime().encode("utf-8") })
     except Exception as e :
         print str(e)
         return False
     return True
 
-#automatic auction closing
+# automatic auction closing
 def auctionClosing(itemid):
     query_string = 'select Started, Ends, Currently, Buy_price from Items where ItemID = $itemid'
     try:
-        result = query(query_string,{'itemid':itemid})
+        result = query(query_string,{'itemid': itemid})
     except Exception as e:
         print str(e)
     else:
-        if  (getTime() >= result[0].Ends | result[0].Currently >= result[0].Buy_Price | getTime() < result[0].Started) :
+        if (getTime() >= result[0].Ends | result[0].Currently >= result[0].Buy_Price | getTime() < result[0].Started):
             return False
     return True
 
-#browse auctions itemid, userid,min_price max_price, status
+# browse auctions by given conditions by users
+# this function would return five lists
+# return the brifly information about resulting item
+# return all the categories the specific item belonged to
+# return status infomation of each specific item
+# return bid infomation of each item
+# return winner information if there is one
 def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
+    # encode to utf-8
     itemid.encode("utf-8")
     category.encode("utf-8")
     itemdes.encode("utf-8")
     min_price.encode("utf-8")
     max_price.encode("utf-8")
+    # declare needed lists
     dist_id = [] 
     info_result = []
     cat_result = []
     status_result = []
     bid_result = []
     winner_result = []
+    # this query gives the result of distinct itemID with the given conditions users entered
+    # the ruslts are used for other queries
     query_string = 'select distinct Items.itemid from Items, Categories  where Items.ItemID = Categories.ItemID'
-    if itemid != '' :
+    if itemid != '':  # if user enter itemID
         query_string = query_string + ' and Items.ItemID = ' + itemid 
-    if category != '' :
+    if category != '':  # if user enter category name
         query_string = query_string + ' and Categories.category  = \'' + category +'\''
-    if itemdes != '' :
+    if itemdes != '':  # if user enter part of description of items
         query_string = query_string + ' and Items.description  like  \'%' + itemdes + "%\'"
-    if min_price != '' :
+    if min_price != '':  # if user enter minimum price boundary
         query_string = query_string + ' and Items.Buy_Price  >= ' + min_price 
-    if max_price != '' :
+    if max_price != '':  # if user enter maximum price boundary
         query_string = query_string + ' and Items.Buy_Price  <= ' + max_price
-    if(status == 'open') :
-        query_string = query_string + ' and Items.Ends > \'' + getTime().encode("utf-8") + '\' and ((Items.Currently < Items.Buy_Price and Items.Buy_Price is not null) or Items.Buy_Price is null) and Items.Started <= \'' +getTime().encode("utf-8") +'\''
-    elif(status == 'close'):
-        query_string = query_string + ' and (Items.Ends <= \'' + getTime().encode("utf-8") + '\' or ((Items.Currently >= Items.Buy_Price and Items.Buy_Price is not null) or Items.Buy_Price is null) or Items.Started > \'' +getTime().encode("utf-8") +'\')'
+    if status == 'open':  # if user only want to see open auctions
+        query_string = (query_string + ' and Items.Ends > \'' + getTime().encode("utf-8") + '\' and '
+                                       '((Items.Currently < Items.Buy_Price and Items.Buy_Price is not null) or Items.Buy_Price is null) ' 
+                                       'and Items.Started <= \'' +getTime().encode("utf-8") +'\'')
+    elif status == 'close':  # if user only want to see closed auctions
+        query_string = (query_string + ' and (Items.Ends <= \'' + getTime().encode("utf-8") + '\' or '
+                                       '((Items.Currently >= Items.Buy_Price and Items.Buy_Price is not null) or Items.Buy_Price is null) '
+                                       'or Items.Started > \'' +getTime().encode("utf-8") +'\')')
     try:
         dist_id = query(query_string)
-        #print "dist_id[0] item id is: "
-        #print dist_id[0].ItemID
-        #print "after try excute query, result = "
-        #print dist_id
-        #print "dist_id length = "
-        #print len(dist_id)
         for i in range (len(dist_id)):
-            #print "in for loop"
+            # query for basic information about itmes
             q_info = "select *, 'link' as Link from Items where itemid = " + str(dist_id[i].ItemID).encode("utf-8")
-            #print q_info
             info_result = query(q_info)
-            #print info_result
-            #result_auction.append(info_result)
+            # query for category information
             q_cat = 'select group_concat(category, \' ,\' ) as Category from Categories where itemid = ' + str(dist_id[i].ItemID).encode("utf-8") + ' group by itemID'
-            #print q_cat
             cat_result = query(q_cat)
-            #print cat_result
-            #result_cat.append(cat_result)
+            # query for status information
             q_status = ('select (case when (Items.Ends > \'' + getTime().encode("utf-8") + '\' and '
                         '((Items.Currently < Items.Buy_Price and Items.Buy_Price is not null) or Items.Buy_Price is null) '
                         'and Items.Started <= \'' + getTime().encode("utf-8") + '\') then \'Open\' '
@@ -152,19 +157,16 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
                         'else \'All\' end) '
                         'as Status from Items where itemId = ' + str(dist_id[i].ItemID).encode("utf-8"))
             status_result = query(q_status)
-            #print status_result
+            # query for bid information
             q_bid = ('select \'Name: \' || userID || \'; \' || \'Time: \' || Time || \'; \' || \'Price: \' || Amount as Bid '
                      'from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf=8") + ' group by userID order by Amount ASC')
             bid_result = query(q_bid)
-            print bid_result
             if len(bid_result) != 0:
+                # query for winner information
                 q_winner = ('select \'Name: \' || userID || \'; \' || \'Price: \' || Amount as Winner '
                             'from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf-8") + ' and Amount = '
                             '(select max(Amount) from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf-8") + ')')
                 winner_result = query(q_winner)
-                print winner_result
     except Exception as e:
-        print "in exception"
         print str(e)
     return info_result, cat_result, status_result, bid_result, winner_result
-

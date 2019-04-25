@@ -143,7 +143,7 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
         for i in range (len(dist_id)):
             # query for basic information about itmes
             q_info = "select *, 'link' as Link from Items where itemid = " + str(dist_id[i].ItemID).encode("utf-8")
-            info_result = query(q_info)
+            info_result.extend(query(q_info))
             # query for category information
             q_cat = 'select group_concat(category, \' ,\' ) as Category from Categories where itemid = ' + str(dist_id[i].ItemID).encode("utf-8") + ' group by itemID'
             cat_result = query(q_cat)
@@ -167,6 +167,10 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
                             'from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf-8") + ' and Amount = '
                             '(select max(Amount) from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf-8") + ')')
                 winner_result = query(q_winner)
+            info_result.extend(cat_result)
+            info_result.extend(bid_result)
+            info_result.extend(status_result)
+            info_result.extend(winner_result)
     except Exception as e:
         print str(e)
-    return info_result, cat_result, status_result, bid_result, winner_result
+    return info_result

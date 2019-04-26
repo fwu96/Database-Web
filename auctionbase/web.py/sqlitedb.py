@@ -97,12 +97,7 @@ def auctionClosing(itemid):
     return True
 
 # browse auctions by given conditions by users
-# this function would return five lists
-# return the brifly information about resulting item
-# return all the categories the specific item belonged to
-# return status infomation of each specific item
-# return bid infomation of each item
-# return winner information if there is one
+# return a list containing needed information
 def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
     # encode to utf-8
     itemid.encode("utf-8")
@@ -117,6 +112,7 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
     status_result = []
     bid_result = []
     winner_result = []
+    result_list = []
     # this query gives the result of distinct itemID with the given conditions users entered
     # the ruslts are used for other queries
     query_string = 'select distinct Items.itemid from Items, Categories  where Items.ItemID = Categories.ItemID'
@@ -145,7 +141,7 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
             q_info = "select *, 'link' as Link from Items where itemid = " + str(dist_id[i].ItemID).encode("utf-8")
             info_result = query(q_info)
             # query for category information
-            q_cat = 'select group_concat(category, \' ,\' ) as Category from Categories where itemid = ' + str(dist_id[i].ItemID).encode("utf-8") + ' group by itemID'
+            q_cat = 'select group_concat(category, \', \' ) as Category from Categories where itemid = ' + str(dist_id[i].ItemID).encode("utf-8") + ' group by itemID'
             cat_result = query(q_cat)
             # query for status information
             q_status = ('select (case when (Items.Ends > \'' + getTime().encode("utf-8") + '\' and '
@@ -167,6 +163,13 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
                             'from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf-8") + ' and Amount = '
                             '(select max(Amount) from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf-8") + ')')
                 winner_result = query(q_winner)
+            # connects all the result
+            info_result.extend(cat_result)
+            info_result.extend(bid_result)
+            info_result.extend(status_result)
+            info_result.extend(winner_result)
+            # make all the information of each single auction together to the result list
+            result_list.append(list(info_result))
     except Exception as e:
         print str(e)
-    return info_result, cat_result, status_result, bid_result, winner_result
+    return result_list

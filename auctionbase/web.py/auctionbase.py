@@ -115,8 +115,6 @@ class add_bid:
         print add_result
         return render_template('add_bid.html', add_result = add_result)
 
-
-
 class search:
     def GET(self):
         return render_template('search.html')
@@ -130,74 +128,49 @@ class search:
         status =  post_params['status']
         descrption = post_params['descrption']
         category =  post_params['category']
-        result = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
-        # print result
+        item_res = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
+        
         global searchingResult
-        searchingResult = result
-
-        print searchingResult
-
-        # html_str = "<div>I need to create a new one</div>"
-        # for res in result:
-        #     for key in res:
-        #         html_str = html_str + "<div><span>" + key + "</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; " + "<span>" + str(res[key])  + "</span></div>"
-        #     break
-        
-        # html_str += "<div>-----------------------</div>"
-
-        # print html_str
-        
-        # Html_file = open("./templates/searchOne.html", "w")
-        # Html_file.write(html_str)
-        # Html_file.close()
-
-        
-        # kw = {}
-        # urlShit = web.http.url("/searchOne.html", False)
-        # print urlShit
-
+        searchingResult = item_res
         global urls
         a = ('/searchResult/(.*)', 'searchResult',)
         urls = urls + a
-        linkList = []
-        for i in range(0,len(result)-1):
-            L = [result[i].ItemID, "http://0.0.0.0:8080/searchResult/search" + str(i)]
-            linkList.append(L) 
-    
-        print linkList
 
-        return render_template('search.html', search_result = linkList)
+        for i in range(len(item_res)):
+            urlStr = "http://0.0.0.0:8080/searchResult/search" + str(i)
+            item_res[i][0].Link = urlStr
+
+        return render_template('search.html', search_result = item_res)
 
 class searchResult:
     def GET(self, name):
         global searchingResult
-        print searchingResult
-        for i in range(0, len(searchingResult) - 1):
+        for i in range(len(searchingResult)):
+            html_str = ("<div><b>Auction infor</b>"
+                        "<br>Detail Information"
+                        "<br><b>Result</b></div>")
             if name == "search" + str(i):
-                html_str = "<div>I need to create a new one</div>"
-                res = searchingResult[i]
-                for key in res:
-                    html_str = html_str + "<div><span>" + key + "</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; " + "<span>" + str(res[key])  + "</span></div>"
-        
-                html_str += "<div>-----------------------</div>"
-
-                print html_str
-            
-                Html_file = open("./templates/" + name + ".html", "w")
-                Html_file.write(html_str)
-                Html_file.close()
-
+                for j in range(len(searchingResult[i])):
+                    res = searchingResult[i][j]
+                    for key in res:
+                        if key == "Bid":
+                            html_str += ("<div>"
+                                        "<span>" + key + str(j - 1) + "</span>"
+                                        "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+                                        "<span>" + str(res[key]) + "</span>"
+                                     "</div>")
+                        else:
+                            html_str += ("<div>"
+                                            "<span>" + key + "</span>"
+                                            "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+                                            "<span>" + str(res[key]) + "</span>"
+                                         "</div>")        
+                    html_str += "<div>--------</div>"
+                    Html_file = open("./templates/" + name + ".html", "w")
+                    Html_file.write(html_str)
+                    Html_file.close()
                 return render_template(name + '.html')
         return render_template("")
-
-        # a = ('/searchOne', 'searchResult',)
-        # urls = urls + a
-
-
-        
-
-
- 
 ###########################################################################################
 ##########################DO NOT CHANGE ANYTHING BELOW THIS LINE!##########################
 ###########################################################################################

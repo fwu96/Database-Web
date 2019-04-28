@@ -157,7 +157,7 @@ def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
             q_bid = ('select \'Name: \' || userID || \'; \' || \'Time: \' || Time || \'; \' || \'Price: \' || Amount as Bid '
                      'from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf=8") + ' group by userID order by Amount ASC')
             bid_result = query(q_bid)
-            if len(bid_result) != 0:
+            if len(bid_result) != 0 and status_result[0] == "Close":
                 # query for winner information
                 q_winner = ('select \'Name: \' || userID || \'; \' || \'Price: \' || Amount as Winner '
                             'from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf-8") + ' and Amount = '

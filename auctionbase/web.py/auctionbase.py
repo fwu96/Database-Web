@@ -67,8 +67,15 @@ class curr_time:
     # Notice that we pass in `current_time' to our `render_template' call
     # in order to have its value displayed on the web page
     def GET(self):
-        current_time = sqlitedb.getTime()
-        return render_template('curr_time.html', time = current_time)
+        t = sqlitedb.transaction()
+        try:
+            current_time = sqlitedb.getTime()
+            return render_template('curr_time.html', time = current_time)
+        except Exception as e:
+            t.rollback()
+            print str(e)
+        else:
+            t.commit()
 
 
 class select_time:
@@ -95,12 +102,18 @@ class select_time:
         selected_time = '%s-%s-%s %s:%s:%s' % (yyyy, MM, dd, HH, mm, ss)
         update_message = '(Hello, %s. Previously selected time was: %s.)' % (enter_name, selected_time)
         # TODO: save the selected time as the current time in the database
-        sqlitedb.changeCurrentTime(selected_time.encode("utf-8"))
-        selected_time = unicode(selected_time)
-        
-        # Here, we assign `update_message' to `message', which means
-        # we'll refer to it in our template as `message'
-        return render_template('select_time.html', message = update_message)
+        t = sqlitedb.transaction()
+        try:
+            sqlitedb.changeCurrentTime(selected_time.encode("utf-8"))
+            selected_time = unicode(selected_time)
+            # Here, we assign `update_message' to `message', which means
+            # we'll refer to it in our template as `message'
+            return render_template('select_time.html', message = update_message)
+        except Exception as e:
+            t.rollback()
+            print str(e)
+        else:
+            t.commit()
 
 class add_bid:
     def GET(self) :
@@ -111,9 +124,15 @@ class add_bid:
         itemID = post_params['itemID']
         price = post_params['price']
         userID = post_params['userID']
-        add_result = sqlitedb.enterBids(itemID,userID.encode("utf-8"),price)
-        print add_result
-        return render_template('add_bid.html', add_result = add_result)
+        t = sqlitedb.transaction()
+        try:
+            add_result = sqlitedb.enterBids(itemID,userID.encode("utf-8"),price)
+            return render_template('add_bid.html', add_result = add_result)
+        except Exception as e:
+            t.rollback()
+            print str(e)
+        else:
+            t.commit()
 
 class search:
     def GET(self):
@@ -121,32 +140,37 @@ class search:
     
     def POST(self) :
         post_params = web.input()
-        print post_params
         itemID = post_params['itemID']
         maxPrice = post_params['maxPrice']
         minPrice = post_params['minPrice']
         status =  post_params['status']
         descrption = post_params['descrption']
         category =  post_params['category']
-        item_res = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
-        
-        global searchingResult
-        searchingResult = item_res
-        global urls
-        a = ('/searchResult/(.*)', 'searchResult',)
-        urls = urls + a
-
-        for i in range(len(item_res)):
-            urlStr = "http://0.0.0.0:8080/searchResult/search" + str(i)
-            item_res[i][0].Link = urlStr
-
-        return render_template('search.html', search_result = item_res)
+        t = sqlitedb.transaction()
+        try:
+            item_res = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
+            global searchingResult
+            searchingResult = item_res
+            global urls
+            a = ('/searchResult/(.*)', 'searchResult',)
+            urls = urls + a
+            for i in range(len(item_res)):
+                urlStr = "http://0.0.0.0:8080/searchResult/search" + str(i)
+                item_res[i][0].Link = urlStr
+            return render_template('search.html', search_result = item_res)
+        except Exception as e:
+            t.rollback()
+            print str(e)
+        else:
+            t.commit()
 
 class searchResult:
     def GET(self, name):
         global searchingResult
         for i in range(len(searchingResult)):
-            html_str = ("<div><b>Auction infor</b>"
+            html_str = ("{% extends \"app_base.html\" %}"
+                        "{% block content %}"
+                        "<div><b>Auction infor</b>"
                         "<br>Detail Information"
                         "<br><b>Result</b></div>")
             if name == "search" + str(i):
@@ -155,20 +179,21 @@ class searchResult:
                     for key in res:
                         if key == "Bid":
                             html_str += ("<div>"
-                                        "<span>" + key + str(j - 1) + "</span>"
-                                        "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
-                                        "<span>" + str(res[key]) + "</span>"
-                                     "</div>")
+                                            "<span>" + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + key + str(j - 1) + "</span>"
+                                            "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+                                            "<span>" + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + str(res[key]) + "</span>"
+                                         "</div>")
                         else:
                             html_str += ("<div>"
-                                            "<span>" + key + "</span>"
+                                            "<span>" + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + key + "</span>"
                                             "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
-                                            "<span>" + str(res[key]) + "</span>"
+                                            "<span>" + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + str(res[key]) + "</span>"
                                          "</div>")        
-                    html_str += "<div>--------</div>"
-                    Html_file = open("./templates/" + name + ".html", "w")
-                    Html_file.write(html_str)
-                    Html_file.close()
+                    html_str += "<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--------</div>"
+                html_str += "{% endblock %}"
+                Html_file = open("./templates/" + name + ".html", "w")
+                Html_file.write(html_str)
+                Html_file.close()
                 return render_template(name + '.html')
         return render_template("")
 ###########################################################################################

@@ -1,186 +1,207 @@
-import web
+#!/usr/bin/env python
 
-db = web.database(dbn='sqlite',
-        db='AuctionBase.db' #TODO: add your SQLite database filename
-    )
+import sys; sys.path.insert(0, 'lib') # this line is necessary for the rest
+import os                             # of the imports to work!
+
+import web
+import sqlitedb
+from jinja2 import Environment, FileSystemLoader
+from datetime import datetime
+
+###########################################################################################
+##########################DO NOT CHANGE ANYTHING ABOVE THIS LINE!##########################
+###########################################################################################
 
 ######################BEGIN HELPER METHODS######################
 
-# Enforce foreign key constraints
-# WARNING: DO NOT REMOVE THIS!
-def enforceForeignKey():
-    db.query('PRAGMA foreign_keys = ON')
+# helper method to convert times from database (which will return a string)
+# into datetime objects. This will allow you to compare times correctly (using
+# ==, !=, <, >, etc.) instead of lexicographically as strings.
 
-# initiates a transaction on the database
-def transaction():
-    return db.transaction()
-# Sample usage (in auctionbase.py):
+# Sample use:
+# current_time = string_to_time(sqlitedb.getTime())
+
+def string_to_time(date_str):
+    return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+
+# helper method to render a template in the templates/ directory
 #
-# t = sqlitedb.transaction()
-# try:
-#     sqlitedb.query('[FIRST QUERY STATEMENT]')
-#     sqlitedb.query('[SECOND QUERY STATEMENT]')
-# except Exception as e:
-#     t.rollback()
-#     print str(e)
-# else:
-#     t.commit()
+# `template_name': name of template file to render
 #
-# check out http://webpy.org/cookbook/transactions for examples
+# `**context': a dictionary of variable names mapped to values
+# that is passed to Jinja2's templating engine
+#
+# See curr_time's `GET' method for sample usage
+#
+# WARNING: DO NOT CHANGE THIS METHOD
+def render_template(template_name, **context):
+    extensions = context.pop('extensions', [])
+    globals = context.pop('globals', {})
 
-# returns the current time from your database
-def getTime():
-    # TODO: update the query string to match
-    # the correct column and table name in your database
-    query_string = 'select Time from CurrentTime'
-    dist_id = query(query_string)
-    # alternatively: return dist_id[0]['currenttime']
-    return dist_id[0].Time # TODO: update this as well to match the
-                                  # column name
+    jinja_env = Environment(autoescape=True,
+            loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')),
+            extensions=extensions,
+            )
+    jinja_env.globals.update(globals)
 
-# returns a single item specified by the Item's ID in the database
-# Note: if the `result' list is empty (i.e. there are no items for a
-# a given ID), this will throw an Exception!
-def getItemById(item_id):
-    # TODO: rewrite this method to catch the Exception in case `result' is empty
-    query_string = 'select * from Items where item_ID = $itemID'
-    try:
-        result = query(query_string, {'itemID': item_id})
-    except Exception as e:
-        print str(e)
-    finally:
-        return result[0]
+    web.header('Content-Type','text/html; charset=utf-8', unique=True)
 
-# wrapper method around web.py's db.query method
-# check out http://webpy.org/cookbook/query for more info
-def query(query_string, vars = {}):
-    result = db.query(query_string, vars)
-    if(isinstance(result,int)):
-        return result
-    return list(result)
+    return jinja_env.get_template(template_name).render(context)
 
 #####################END HELPER METHODS#####################
 
-#TODO: additional methods to interact with your database,
-# e.g. to update the current time
+urls = ('/currtime', 'curr_time',
+        '/selecttime', 'select_time',
+        '/add_bid','add_bid',
+        '/search','search',
+        '/curr_time', 'curr_time',
+        # '/searchOne', 'searchResult',
+        # TODO: add additional URLs here
+        # first parameter => URL, second parameter => class name
+        )
+global searchingResult
+searchingResult = []
+class curr_time:
+    # A simple GET request
+    #
+    # Notice that we pass in `current_time' to our `render_template' call
+    # in order to have its value displayed on the web page
+    def GET(self):
+        t = sqlitedb.transaction()
+        try:
+            current_time = sqlitedb.getTime()
+        except Exception as e:
+            t.rollback()
+            print str(e)
+        else:
+            t.commit()
+        return render_template('curr_time.html', time = current_time)
 
-# Manually updating current time
-def changeCurrentTime(cur_time):
-    query_string = 'update CurrentTime set Time = $curTime where Time = $oldTime'
-    try:
-        result = query(query_string, {'curTime': cur_time, 'oldTime': getTime().encode("utf-8")})
-    except Exception as e:
-        print str(e)
-   
-# Allow user to enter their bid
-# return true if they enter successfully, otherwise false
-# the entering result would be shown on the screen
-def enterBids(itemid, userid, amount):
-    query_string = 'insert into Bids(itemid, userid, amount, time) values ($v1, $v2, $v3, $v4);'
-    try:
-        result = query(query_string, {'v1': itemid.encode("utf-8"), 
-                                      'v2': userid, 
-                                      'v3': amount.encode("utf-8"), 
-                                      'v4': getTime().encode("utf-8") })
-    except Exception as e :
-        print str(e)
-        return False
-    return True
 
-# automatic auction closing
-def auctionClosing(itemid):
-    query_string = 'select Started, Ends, Currently, Buy_price from Items where ItemID = $itemid'
-    try:
-        result = query(query_string,{'itemid': itemid})
-    except Exception as e:
-        print str(e)
-    else:
-        if (getTime() >= result[0].Ends | result[0].Currently >= result[0].Buy_Price | getTime() < result[0].Started):
-            return False
-    return True
+class select_time:
+    # Aanother GET request, this time to the URL '/selecttime'
+    def GET(self):
+        return render_template('select_time.html')
 
-# browse auctions by given conditions by users
-# return a list containing needed information
-def browseAuctions(itemid, category, itemdes, min_price,max_price, status):
-    # encode to utf-8
-    itemid.encode("utf-8")
-    category.encode("utf-8")
-    itemdes.encode("utf-8")
-    min_price.encode("utf-8")
-    max_price.encode("utf-8")
-    # declare needed lists
-    dist_id = [] 
-    info_result = []
-    cat_result = []
-    status_result = []
-    bid_result = []
-    winner_result = []
-    result_list = []
-    # this query gives the result of distinct itemID with the given conditions users entered
-    # the ruslts are used for other queries
-    query_string = 'select distinct Items.itemid from Items, Categories  where Items.ItemID = Categories.ItemID'
-    if itemid != '':  # if user enter itemID
-        query_string = query_string + ' and Items.ItemID = ' + itemid 
-    if category != '':  # if user enter category name
-        query_string = query_string + ' and Categories.category  = \'' + category +'\''
-    if itemdes != '':  # if user enter part of description of items
-        query_string = query_string + ' and Items.description  like  \'%' + itemdes + "%\'"
-    if min_price != '':  # if user enter minimum price boundary
-        query_string = query_string + ' and Items.First_Bid  >= ' + min_price 
-    if max_price != '':  # if user enter maximum price boundary
-        query_string = (query_string + ' and ((Items.Buy_Price  <= ' + max_price + ' and Items.Buy_Price IS NOT null)'
-                                       ' or Items.Buy_Price is null)')
-    if status == 'open':  # if user only want to see open auctions
-        query_string = (query_string + ' and Items.Ends > \'' + getTime().encode("utf-8") + '\' and '
-                                       '((Items.Currently < Items.Buy_Price and Items.Buy_Price is not null) '
-                                       'or Items.Buy_Price is null) ' 
-                                       'and Items.Started <= \'' +getTime().encode("utf-8") +'\'')
-    elif status == 'close':  # if user only want to see closed auctions
-        query_string = (query_string + ' and (Items.Ends <= \'' + getTime().encode("utf-8") + '\' or '
-                                       '((Items.Currently >= Items.Buy_Price and Items.Buy_Price is not null) '
-                                       'or Items.Buy_Price is null) '
-                                       'or Items.Started > \'' +getTime().encode("utf-8") +'\')')
-    try:
-        dist_id = query(query_string)
-        for i in range (len(dist_id)):
-            # query for basic information about itmes
-            q_info = "select *, 'link' as Link from Items where itemid = " + str(dist_id[i].ItemID).encode("utf-8")
-            info_result = query(q_info)
-            # query for category information
-            q_cat = ('select group_concat(category, \', \' ) as Category from Categories where itemid = ' 
-                    + str(dist_id[i].ItemID).encode("utf-8") + ' group by itemID')
-            cat_result = query(q_cat)
-            # query for status information
-            q_status = ('select (case when (Items.Ends > \'' + getTime().encode("utf-8") + '\' and '
-                        '((Items.Currently < Items.Buy_Price and Items.Buy_Price is not null) '
-                        'or Items.Buy_Price is null) '
-                        'and Items.Started <= \'' + getTime().encode("utf-8") + '\') then \'Open\' '
-                        'when ((Items.Ends <= \'' + getTime().encode("utf-8") + '\' or '
-                        '((Items.Currently >= Items.Buy_Price and Items.Buy_Price is not null) or '
-                        'Items.Buy_Price is null) or Items.Started > \'' + getTime().encode("utf-8") + '\')) '
-                        'then \'Close\' '
-                        'else \'All\' end) '
-                        'as Status from Items where itemId = ' + str(dist_id[i].ItemID).encode("utf-8"))
-            status_result = query(q_status)
-            # query for bid information
-            q_bid = ('select \'Name: \' || userID || \'; \' || \'Time: \' || Time || \'; \' || \'Price: \' || Amount '
-                     'as Bid from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf=8") 
-                     + ' group by userID order by Amount ASC')
-            bid_result = query(q_bid)
-            if len(bid_result) != 0 and status_result[0].Status == "Close":
-                # query for winner information
-                q_winner = ('select \'Name: \' || userID || \'; \' || \'Price: \' || Amount as Winner '
-                            'from Bids where itemID = ' + str(dist_id[i].ItemID).encode("utf-8") + ' and Amount = '
-                            '(select max(Amount) from Bids where itemID = ' 
-                            + str(dist_id[i].ItemID).encode("utf-8") + ')')
-                winner_result = query(q_winner)
-            # connects all the result
-            info_result.extend(cat_result)
-            info_result.extend(bid_result)
-            info_result.extend(status_result)
-            info_result.extend(winner_result)
-            # make all the information of each single auction together to the result list
-            result_list.append(list(info_result))
-    except Exception as e:
-        print str(e)
-    return result_list
+    # A POST request
+    #
+    # You can fetch the parameters passed to the URL
+    # by calling `web.input()' for **both** POST requests
+    # and GET requests
+    def POST(self):
+        post_params = web.input()
+        MM = post_params['MM']
+        dd = post_params['dd']
+        yyyy = post_params['yyyy']
+        HH = post_params['HH']
+        mm = post_params['mm']
+        ss = post_params['ss']
+        enter_name = post_params['entername']
+
+
+        selected_time = '%s-%s-%s %s:%s:%s' % (yyyy, MM, dd, HH, mm, ss)
+        update_message = '(Hello, %s. Previously selected time was: %s.)' % (enter_name, selected_time)
+        # TODO: save the selected time as the current time in the database
+        t = sqlitedb.transaction()
+        try:
+            sqlitedb.changeCurrentTime(selected_time.encode("utf-8"))
+            selected_time = unicode(selected_time)
+            # Here, we assign `update_message' to `message', which means
+            # we'll refer to it in our template as `message'
+        except Exception as e:
+            t.rollback()
+            print str(e)
+        else:
+            t.commit()
+        return render_template('select_time.html', message = update_message)
+
+class add_bid:
+    def GET(self) :
+         return render_template('add_bid.html')
+
+    def POST(self) :
+        post_params = web.input()
+        itemID = post_params['itemID']
+        price = post_params['price']
+        userID = post_params['userID']
+        t = sqlitedb.transaction()
+        try:
+            add_result = sqlitedb.enterBids(itemID,userID.encode("utf-8"),price)
+        except Exception as e:
+            t.rollback()
+            print str(e)
+        else:
+            t.commit()
+        return render_template('add_bid.html', add_result = add_result)
+
+class search:
+    def GET(self):
+        return render_template('search.html')
+    
+    def POST(self) :
+        post_params = web.input()
+        itemID = post_params['itemID']
+        maxPrice = post_params['maxPrice']
+        minPrice = post_params['minPrice']
+        status =  post_params['status']
+        descrption = post_params['descrption']
+        category =  post_params['category']
+        t = sqlitedb.transaction()
+        try:
+            item_res = sqlitedb.browseAuctions(itemID, category, descrption, minPrice, maxPrice, status)
+            global searchingResult
+            searchingResult = item_res
+            global urls
+            a = ('/searchResult/(.*)', 'searchResult',)
+            urls = urls + a
+            for i in range(len(item_res)):
+                urlStr = "http://0.0.0.0:8080/searchResult/search" + str(i)
+                item_res[i][0].Link = urlStr
+        except Exception as e:
+            t.rollback()
+            print str(e)
+        else:
+            t.commit()
+        return render_template('search.html', search_result = item_res)
+
+class searchResult:
+    def GET(self, name):
+        global searchingResult
+        for i in range(len(searchingResult)):
+            html_str = ("{% extends \"app_base.html\" %}\n"
+                        "{% block content %}\n"
+                        "<div><b>Auction infor</b>\n"
+                        "<br>Detail Information\n"
+                        "<br><b>Result</b></div>\n")
+            if name == "search" + str(i):
+                for j in range(len(searchingResult[i])):
+                    res = searchingResult[i][j]
+                    for key in res:
+                        if key == "Bid":
+                            html_str += ("<div>\n"
+                                            "<span>" + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + key + str(j - 1) + "</span>\n"
+                                            "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n"
+                                            "<span>" + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + str(res[key]) + "</span>\n"
+                                         "</div>\n")
+                        else:
+                            html_str += ("<div>\n"
+                                            "<span>" + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + key + "</span>\n"
+                                            "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\n"
+                                            "<span>" + "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + str(res[key]) + "</span>\n"
+                                         "</div>\n")        
+                    html_str += "<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--------</div>\n"
+                html_str += "{% endblock %}\n"
+                Html_file = open("./templates/" + name + ".html", "w")
+                Html_file.write(html_str)
+                Html_file.close()
+                return render_template(name + '.html')
+        return render_template("")
+###########################################################################################
+##########################DO NOT CHANGE ANYTHING BELOW THIS LINE!##########################
+###########################################################################################
+
+if __name__ == '__main__':
+    web.internalerror = web.debugerror
+    app = web.application(urls, globals())
+    app.add_processor(web.loadhook(sqlitedb.enforceForeignKey))
+    app.run()
